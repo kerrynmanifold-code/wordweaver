@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word Weaver</title>
+<style>
+:root{
+  --bg:#f3f5fa;--panel:#ffffff;--ink:#0f1b2d;--muted:#475569;--line:#cbd5e1;
+  --cell:#e3e9f3;--cell-ink:#0f1b2d;
+  --accent:#1d4ed8;--accent-ink:#ffffff;
+  --found:#0f766e;--found-ink:#ffffff;
+  --gold:#f2b705;--gold-ink:#1f1600;
+  --bad:#b91c1c;--good:#166534;--focus:#9333ea;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0b1220;--panel:#141d30;--ink:#f1f5f9;--muted:#b6c2d4;--line:#334155;
+    --cell:#22304a;--cell-ink:#f8fafc;
+    --accent:#3b82f6;--accent-ink:#ffffff;
+    --found:#2dd4bf;--found-ink:#04201d;
+    --gold:#fcd34d;--gold-ink:#1f1600;
+    --bad:#fca5a5;--good:#86efac;--focus:#e879f9;
+  }
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{margin:0}
+body{font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45;font-size:1.0625rem}
+.app-header{display:flex;align-items:center;gap:.6rem;padding:.7rem 1rem;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{font-weight:800;font-size:1.25rem;display:flex;align-items:center;gap:.5rem}
+.brand svg{width:30px;height:30px;flex:none}
+.mode-tag{margin-left:auto;font-size:.85rem;padding:.2rem .7rem;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+main{max-width:1100px;margin:0 auto;padding:1rem}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:1.25rem}
+h1{font-size:1.5rem;line-height:1.2;margin:.1rem 0 .4rem}
+h2{font-size:1.15rem;margin:0 0 .5rem}
+p{margin:.4rem 0}
+.lead{color:var(--muted);margin-top:0}
+label{display:block;font-weight:700;margin:1.1rem 0 .3rem}
+.help{display:block;font-weight:400;color:var(--muted);font-size:.92rem}
+input[type=text],textarea{width:100%;font:inherit;padding:.65rem .75rem;border:2px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+textarea{min-height:11rem;resize:vertical}
+input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.btn{font:inherit;font-weight:700;min-height:48px;padding:.55rem 1.05rem;border-radius:12px;border:2px solid var(--ink);background:var(--panel);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;text-decoration:none}
+.btn:hover{filter:brightness(.96)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.small{min-height:44px;font-size:.95rem;padding:.45rem .85rem}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.row{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1rem}
+.error{margin-top:1rem;padding:.75rem 1rem;border-left:6px solid var(--bad);background:color-mix(in srgb,var(--bad) 12%,transparent);border-radius:8px;font-weight:600}
+.error ul{margin:.3rem 0 0;padding-left:1.2rem}
+.legend{display:flex;flex-wrap:wrap;gap:.4rem 1rem;margin-top:.6rem;font-size:.92rem;color:var(--muted)}
+
+/* ---------- Game ---------- */
+.game-head{display:flex;flex-wrap:wrap;align-items:flex-end;gap:.75rem 1rem;margin-bottom:.8rem}
+.game-head h1{margin:0;flex:1 1 260px;outline:none}
+.theme-box{background:var(--panel);border:2px solid var(--ink);border-radius:12px;padding:.45rem .9rem;min-width:min(100%,220px)}
+.theme-box small{display:block;font-size:.75rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.theme-box strong{font-size:1.1rem}
+.teacher-bar{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:.9rem;padding:.6rem;border:2px dashed var(--line);border-radius:12px}
+.teacher-bar .tb-label{font-weight:800;font-size:.85rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:.3rem}
+.share-box{width:100%;margin-top:.3rem}
+.share-box input{font-size:.85rem}
+.share-box p{font-size:.9rem;color:var(--muted)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:1rem;align-items:start}
+@media (max-width:820px){.layout{grid-template-columns:minmax(0,1fr)}}
+.board-panel{padding:1rem .75rem}
+.board-wrap{container-type:inline-size;width:100%;max-width:min(100%,calc(var(--n,8) * 66px));margin:0 auto}
+.board{position:relative;display:grid;grid-template-columns:repeat(var(--n,8),1fr);touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.board svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.ln{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.ln.sel{stroke:var(--accent);stroke-width:.2;opacity:.7}
+.ln.found{stroke:var(--found);stroke-width:.24}
+.ln.special{stroke:var(--gold);stroke-width:.26}
+.ln.sol{stroke:var(--muted);stroke-width:.09;stroke-dasharray:.16 .12}
+.cell{position:relative;z-index:1;aspect-ratio:1/1;border:0;background:transparent;padding:0;margin:0;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--cell-ink);font:inherit;touch-action:none;-webkit-tap-highlight-color:transparent}
+.cell:focus-visible{outline:none}
+.cell span{width:84%;height:84%;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--cell);font-weight:800;font-size:calc(100cqw / var(--n,8) * .48);line-height:1;border:3px solid transparent;transition:transform .12s ease,background-color .12s ease;pointer-events:none}
+.cell:focus-visible span{outline:3px solid var(--focus);outline-offset:2px}
+.cell.sel span{background:var(--accent);color:var(--accent-ink);border-color:var(--ink);transform:scale(1.07)}
+.cell.found span{background:var(--found);color:var(--found-ink);border-color:var(--found-ink);border-style:solid}
+.cell.special span{background:var(--gold);color:var(--gold-ink);border:4px double var(--gold-ink)}
+.cell.found,.cell.special{cursor:default}
+.cell.sol span{outline:2px dashed var(--muted);outline-offset:1px}
+.cell.hint span{outline:4px dashed var(--gold);outline-offset:2px;animation:pulse .9s ease-in-out 4}
+.cell.nope span{animation:nope .35s ease}
+.board.shake{animation:shake .4s ease}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+@keyframes nope{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+@media (prefers-reduced-motion:reduce){.cell span{transition:none}.cell.hint span,.cell.nope span,.board.shake{animation:none}}
+.current{margin:1rem auto 0;text-align:center}
+.current-label{font-size:.8rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.current-word{display:block;font-size:clamp(1.3rem,5vw,1.9rem);font-weight:800;letter-spacing:.14em;min-height:2.4rem;word-break:break-all}
+.current-count{font-size:.9rem;color:var(--muted);min-height:1.3rem}
+.controls{display:flex;flex-wrap:wrap;justify-content:center;gap:.6rem;margin-top:.7rem}
+.controls .btn{flex:1 1 120px;max-width:200px}
+.msg{min-height:2.8rem;margin:.75rem 0 0;padding:.55rem .8rem;border-radius:10px;font-weight:600;text-align:center}
+.msg.good{color:var(--good);background:color-mix(in srgb,var(--found) 12%,transparent)}
+.msg.gold{color:var(--ink);background:color-mix(in srgb,var(--gold) 30%,transparent)}
+.msg.bad{color:var(--bad);background:color-mix(in srgb,var(--bad) 10%,transparent)}
+.msg.info{color:var(--muted)}
+.hint-line{min-height:1.4rem;margin:.4rem 0 0;text-align:center;font-weight:600}
+.side{display:flex;flex-direction:column;gap:1rem}
+.progress-text{font-size:1.15rem;font-weight:700}
+.bar{height:14px;border-radius:999px;background:var(--cell);overflow:hidden;border:1px solid var(--line);margin-top:.4rem}
+.bar span{display:block;height:100%;width:0;background:var(--found);transition:width .3s ease}
+.found-list{list-style:none;margin:.8rem 0 0;padding:0;display:flex;flex-direction:column;gap:.4rem}
+.found-list li{padding:.45rem .7rem;border-radius:10px;font-weight:700;background:color-mix(in srgb,var(--found) 16%,transparent);border-left:6px solid var(--found)}
+.found-list li.special{background:color-mix(in srgb,var(--gold) 28%,transparent);border-left:6px double var(--gold-ink)}
+.hidden-note{color:var(--muted);font-size:.95rem;margin-top:.6rem}
+.how summary{font-weight:700;cursor:pointer;min-height:44px;display:flex;align-items:center}
+.how ul{padding-left:1.2rem;margin:.3rem 0}
+.how li{margin:.25rem 0}
+.complete{margin-top:1rem;text-align:center;border:4px solid var(--gold);background:color-mix(in srgb,var(--gold) 16%,var(--panel))}
+.complete h2{font-size:1.7rem;outline:none}
+.make-own{display:inline-block;margin-top:.6rem;font-size:.95rem;color:var(--muted)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+@media (max-width:420px){main{padding:.6rem}.panel{padding:.9rem}.board-panel{padding:.6rem .3rem}h1{font-size:1.3rem}}
+</style>
+</head>
+<body>
+<header class="app-header">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 8 L13 16 L19 8 L27 16 L19 24" fill="none" stroke="#f2b705" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="5" cy="8" r="3.4" fill="#1d4ed8"/><circle cx="13" cy="16" r="3.4" fill="#1d4ed8"/><circle cx="19" cy="8" r="3.4" fill="#1d4ed8"/><circle cx="27" cy="16" r="3.4" fill="#1d4ed8"/><circle cx="19" cy="24" r="3.4" fill="#0f766e"/></svg>
+    <span>Word Weaver</span>
+  </div>
+  <span class="mode-tag" id="modeTag">Teacher builder</span>
+</header>
+<main>
+<!--BUILDER-START-->
+<section id="builder" class="panel" hidden aria-labelledby="builderHeading">
+  <h1 id="builderHeading">Teacher Puzzle Builder</h1>
+  <p class="lead">Enter your words, generate a grid, check it, then share it with your class.</p>
+  <form id="builderForm" novalidate>
+    <label for="fTitle">1. Puzzle title</label>
+    <input type="text" id="fTitle" maxlength="80" autocomplete="off">
+    <label for="fTheme">2. Theme / clue <span class="help">Shown to students as the clue.</span></label>
+    <input type="text" id="fTheme" maxlength="120" autocomplete="off">
+    <label for="fWords">3. Theme words <span class="help">One word or phrase per line. Spaces and punctuation are removed in the grid (e.g. “No Man’s Land” becomes NOMANSLAND). Minimum 3 letters each.</span></label>
+    <textarea id="fWords" spellcheck="false"></textarea>
+    <label for="fSpecial">4. Special word – the “Golden Thread” <span class="help">Ties the theme together. Highlighted in gold when found.</span></label>
+    <input type="text" id="fSpecial" maxlength="40" autocomplete="off">
+    <div id="builderError" class="error" role="alert" hidden></div>
+    <div class="row">
+      <button type="submit" class="btn primary" id="genBtn">Generate Puzzle</button>
+      <button type="button" class="btn" id="exampleBtn">Load example</button>
+      <button type="button" class="btn" id="clearFormBtn">Clear form</button>
+    </div>
+  </form>
+</section>
+<!--BUILDER-END-->
+
+<section id="game" hidden aria-labelledby="pTitle">
+  <div class="game-head">
+    <h1 id="pTitle" tabindex="-1"></h1>
+    <div class="theme-box"><small>Theme</small><strong id="pTheme"></strong></div>
+  </div>
+
+  <div class="teacher-bar" id="teacherBar" hidden>
+    <span class="tb-label">Teacher</span>
+    <button type="button" class="btn small" id="copyBtn">Copy Puzzle Link</button>
+    <button type="button" class="btn small" id="dlBtn">Download Student Puzzle</button>
+    <button type="button" class="btn small" id="solBtn" aria-pressed="false">Show solution</button>
+    <button type="button" class="btn small" id="regenBtn">New layout</button>
+    <button type="button" class="btn small" id="editBtn">Edit puzzle</button>
+    <div class="share-box" id="shareBox" hidden>
+      <label for="shareLink" style="margin-top:.3rem">Puzzle link</label>
+      <input type="text" id="shareLink" readonly>
+      <p id="shareNote"></p>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="panel board-panel">
+      <div class="board-wrap" id="boardWrap">
+        <div class="board" id="board" role="group" aria-label="Letter grid"></div>
+      </div>
+      <div class="current" aria-live="polite">
+        <span class="current-label">Selected letters</span>
+        <span class="current-word" id="currentWord">—</span>
+        <div class="current-count" id="currentCount"></div>
+      </div>
+      <div class="controls">
+        <button type="button" class="btn primary" id="checkBtn">Check Word</button>
+        <button type="button" class="btn" id="clearBtn">Clear Selection</button>
+        <button type="button" class="btn" id="hintBtn">Hint</button>
+      </div>
+      <p class="msg info" id="message" role="status" aria-live="polite"></p>
+      <p class="hint-line" id="hintLine" aria-live="polite"></p>
+    </div>
+
+    <aside class="side">
+      <div class="panel">
+        <h2>Progress</h2>
+        <div class="progress-text"><span id="foundCount">0</span> of <span id="totalCount">0</span> found</div>
+        <div class="bar" aria-hidden="true"><span id="progressBar"></span></div>
+        <ul class="found-list" id="foundList" aria-label="Words found"></ul>
+        <p class="hidden-note" id="hiddenNote"></p>
+      </div>
+      <div class="panel">
+        <details class="how">
+          <summary>How to play</summary>
+          <ul>
+            <li><strong>Tap</strong> letters one at a time, or <strong>drag</strong> across them.</li>
+            <li>Each letter must touch the last one – up, down, sideways or <strong>diagonally</strong>.</li>
+            <li>Words can bend and change direction.</li>
+            <li>Tap the last letter again to remove it. Tap an earlier letter to go back to it.</li>
+            <li>Correct answers lock in automatically. Use <strong>Check Word</strong> for feedback.</li>
+            <li>Theme words turn <strong>teal</strong>. The <strong>Golden Thread ★</strong> turns gold with a double border.</li>
+            <li>Keyboard: arrow keys move, Enter/Space selects, Backspace removes, Esc clears.</li>
+          </ul>
+        </details>
+        <a href="#" class="make-own" id="makeOwn" hidden>Make your own puzzle</a>
+      </div>
+    </aside>
+  </div>
+
+  <div class="panel complete" id="complete" hidden>
+    <h2 id="completeHeading" tabindex="-1">🎉 Puzzle complete!</h2>
+    <p id="completeText"></p>
+    <div class="row" style="justify-content:center">
+      <button type="button" class="btn primary" id="restartBtn">Restart</button>
+    </div>
+  </div>
+</section>
+</main>
+
+<script id="ww-main">
+(function () {
+  'use strict';
+
+  /* Pristine copy of this page, captured before any changes – used to build the student download. */
+  var APP_SOURCE = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var els = {
+    builder: $('builder'), form: $('builderForm'), fTitle: $('fTitle'), fTheme: $('fTheme'),
+    fWords: $('fWords'), fSpecial: $('fSpecial'), bErr: $('builderError'), genBtn: $('genBtn'),
+    exampleBtn: $('exampleBtn'), clearFormBtn: $('clearFormBtn'),
+    game: $('game'), pTitle: $('pTitle'), pTheme: $('pTheme'), teacherBar: $('teacherBar'),
+    copyBtn: $('copyBtn'), dlBtn: $('dlBtn'), solBtn: $('solBtn'), regenBtn: $('regenBtn'), editBtn: $('editBtn'),
+    shareBox: $('shareBox'), shareLink: $('shareLink'), shareNote: $('shareNote'),
+    boardWrap: $('boardWrap'), board: $('board'), currentWord: $('currentWord'), currentCount: $('currentCount'),
+    checkBtn: $('checkBtn'), clearBtn: $('clearBtn'), hintBtn: $('hintBtn'), msg: $('message'), hintLine: $('hintLine'),
+    foundCount: $('foundCount'), totalCount: $('totalCount'), bar: $('progressBar'), foundList: $('foundList'),
+    hiddenNote: $('hiddenNote'), complete: $('complete'), completeHeading: $('completeHeading'),
+    completeText: $('completeText'), restartBtn: $('restartBtn'), modeTag: $('modeTag'), makeOwn: $('makeOwn')
+  };
+  var HAS_BUILDER = !!els.builder;
+
+  var EXAMPLE = {
+    title: 'WWI: Trench Life',
+    theme: 'Mud, wire and waiting',
+    words: ['Trench', 'Rations', 'Sandbag', 'Barbed wire', "No Man's Land", 'Artillery'],
+    special: 'Western Front'
+  };
+
+  /* ================= Utilities ================= */
+  function shuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; }
+    return a;
+  }
+  function normalise(s) {
+    return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z]/g, '');
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  var nbCache = {};
+  function neighbours(n) {
+    if (nbCache[n]) return nbCache[n];
+    var out = [];
+    for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) {
+      var l = [];
+      for (var dr = -1; dr <= 1; dr++) for (var dc = -1; dc <= 1; dc++) {
+        if (!dr && !dc) continue;
+        var rr = r + dr, cc = c + dc;
+        if (rr >= 0 && rr < n && cc >= 0 && cc < n) l.push(rr * n + cc);
+      }
+      out.push(l);
+    }
+    nbCache[n] = out;
+    return out;
+  }
+  function adjacent(a, b, n) {
+    var ar = Math.floor(a / n), ac = a % n, br = Math.floor(b / n), bc = b % n;
+    return a !== b && Math.abs(ar - br) <= 1 && Math.abs(ac - bc) <= 1;
+  }
+  function reversed(s) { return s.split('').reverse().join(''); }
+
+  /* ================= Builder input ================= */
+  function readBuilder() {
+    var errors = [];
+    var title = els.fTitle.value.trim() || 'Word Weaver puzzle';
+    var theme = els.fTheme.value.trim();
+    if (!theme) errors.push('Enter a theme or clue so students know what they are looking for.');
+    var lines = els.fWords.value.split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+    var specialRaw = els.fSpecial.value.trim();
+    if (!lines.length) errors.push('Enter at least one theme word (one per line).');
+    if (!specialRaw) errors.push('Enter the special “Golden Thread” word.');
+    var entries = [], seen = {};
+    function add(d, s) {
+      var w = normalise(d);
+      if (w.length < 3) { errors.push('“' + d + '” needs at least 3 letters (spaces and punctuation are ignored).'); return; }
+      if (w.length > 30) { errors.push('“' + d + '” is too long – please keep answers to 30 letters or fewer.'); return; }
+      if (seen[w]) { errors.push('“' + d + '” is a duplicate of “' + seen[w] + '” once spaces and punctuation are removed.'); return; }
+      seen[w] = d;
+      entries.push({ d: d, w: w, s: s });
+    }
+    lines.forEach(function (l) { add(l, false); });
+    if (specialRaw) add(specialRaw, true);
+    if (entries.length > 20) errors.push('Please use 20 answers or fewer.');
+    var total = entries.reduce(function (t, e) { return t + e.w.length; }, 0);
+    if (total > 190) errors.push('These answers contain ' + total + ' letters in total. Keep the total under 190 letters so the grid stays readable.');
+    return { errors: errors, title: title, theme: theme, entries: entries };
+  }
+
+  /* ================= Generator ================= */
+  var STEP_BUDGET = 6000;
+
+  function findWalk(L, owner, n) {
+    var nb = neighbours(n);
+    var free = [];
+    for (var i = 0; i < n * n; i++) if (owner[i] < 0) free.push(i);
+    if (free.length < L) return null;
+    shuffle(free);
+    var used = new Uint8Array(n * n), path = [], steps = 0;
+    function freeDeg(c) {
+      var k = 0, l = nb[c];
+      for (var j = 0; j < l.length; j++) if (owner[l[j]] < 0 && !used[l[j]]) k++;
+      return k;
+    }
+    function dfs(c) {
+      if (++steps > STEP_BUDGET) return false;
+      path.push(c); used[c] = 1;
+      if (path.length === L) return true;
+      var opts = [];
+      nb[c].forEach(function (x) { if (owner[x] < 0 && !used[x]) opts.push({ x: x, k: freeDeg(x) + Math.random() * 1.6 }); });
+      opts.sort(function (a, b) { return a.k - b.k; }); // hug edges / used areas to keep free space connected
+      for (var j = 0; j < opts.length; j++) { if (dfs(opts[j].x)) return true; if (steps > STEP_BUDGET) break; }
+      path.pop(); used[c] = 0;
+      return false;
+    }
+    var tries = Math.min(free.length, 30);
+    for (var s = 0; s < tries; s++) {
+      if (dfs(free[s])) return path.slice();
+      if (steps > STEP_BUDGET) break;
+    }
+    return null;
+  }
+
+  function attemptLayout(entries, n) {
+    var order = entries.map(function (e, i) { return i; });
+    order.sort(function (a, b) { return (entries[b].w.length - entries[a].w.length) || (Math.random() - 0.5); });
+    var owner = new Int16Array(n * n).fill(-1), paths = [];
+    for (var k = 0; k < order.length; k++) {
+      var idx = order[k];
+      var p = findWalk(entries[idx].w.length, owner, n);
+      if (!p) return { ok: false, word: entries[idx].d };
+      p.forEach(function (c) { owner[c] = idx; });
+      paths[idx] = p;
+    }
+    return { ok: true, paths: paths, owner: owner };
+  }
+
+  var FILL = 'EEEEEEEEEEETTTTTTTTAAAAAAAOOOOOOIIIIIINNNNNNSSSSSRRRRRHHHHLLLLDDDDCCCUUUMMMFFPPGGWWYYBBVKJXQZ';
+
+  function countSpellings(word, grid, n, cap) {
+    var nb = neighbours(n), used = new Uint8Array(n * n), count = 0;
+    function dfs(c, k) {
+      if (k === word.length - 1) { count++; return; }
+      used[c] = 1;
+      var l = nb[c];
+      for (var j = 0; j < l.length && count <= cap; j++) {
+        var x = l[j];
+        if (!used[x] && grid[x] === word[k + 1]) dfs(x, k + 1);
+      }
+      used[c] = 0;
+    }
+    for (var i = 0; i < n * n && count <= cap; i++) if (grid[i] === word[0]) dfs(i, 0);
+    return count;
+  }
+
+  function fillGrid(entries, paths, owner, n) {
+    var base = new Array(n * n).fill('');
+    entries.forEach(function (e, i) { paths[i].forEach(function (c, k) { base[c] = e.w[k]; }); });
+    var best = null, bestScore = Infinity;
+    for (var t = 0; t < 25; t++) {
+      var g = base.slice();
+      for (var i = 0; i < n * n; i++) if (owner[i] < 0) g[i] = FILL[Math.floor(Math.random() * FILL.length)];
+      var score = 0;
+      for (var k = 0; k < entries.length; k++) {
+        var w = entries[k].w, expected = (w === reversed(w)) ? 2 : 1;
+        score += Math.max(0, countSpellings(w, g, n, expected + 3) - expected);
+      }
+      if (score < bestScore) { bestScore = score; best = g; }
+      if (score === 0) break;
+    }
+    return best.join('');
+  }
+
+  function generate(data) {
+    var entries = data.entries;
+    var total = entries.reduce(function (t, e) { return t + e.w.length; }, 0);
+    var n0 = Math.max(5, Math.ceil(Math.sqrt(total * 1.3)));
+    var maxN = Math.min(15, n0 + 4);
+    var fails = {};
+    for (var n = Math.min(n0, 15); n <= maxN; n++) {
+      if (n * n < total) continue;
+      for (var att = 0; att < 60; att++) {
+        var res = attemptLayout(entries, n);
+        if (!res.ok) { fails[res.word] = (fails[res.word] || 0) + 1; continue; }
+        var grid = fillGrid(entries, res.paths, res.owner, n);
+        var puzzle = {
+          v: 1, title: data.title, theme: data.theme, n: n, grid: grid,
+          answers: entries.map(function (e, i) { return { d: e.d, w: e.w, s: e.s ? 1 : 0, p: res.paths[i] }; })
+        };
+        var errs = validatePuzzle(puzzle);
+        if (!errs.length) return { ok: true, puzzle: puzzle };
+      }
+    }
+    var worst = null, max = -1;
+    Object.keys(fails).forEach(function (k) { if (fails[k] > max) { max = fails[k]; worst = k; } });
+    return { ok: false, word: worst };
+  }
+
+  /* ================= Validation ================= */
+  function validatePuzzle(p) {
+    var e = [];
+    if (!p || typeof p !== 'object') return ['Puzzle data is missing.'];
+    var n = p.n;
+    if (!Number.isInteger(n) || n < 3 || n > 20) return ['The grid size is invalid.'];
+    if (typeof p.grid !== 'string' || p.grid.length !== n * n || !/^[A-Z]+$/.test(p.grid)) return ['The grid letters are invalid.'];
+    if (typeof p.title !== 'string' || typeof p.theme !== 'string') return ['The title or theme is missing.'];
+    if (!Array.isArray(p.answers) || !p.answers.length) return ['The puzzle has no answers.'];
+    var used = {}, specials = 0;
+    p.answers.forEach(function (a, ai) {
+      var label = (a && a.d) ? '“' + a.d + '”' : 'Answer ' + (ai + 1);
+      if (!a || typeof a.w !== 'string' || !/^[A-Z]{2,}$/.test(a.w) || !Array.isArray(a.p) || typeof a.d !== 'string') { e.push(label + ' is malformed.'); return; }
+      if (a.s) specials++;
+      if (a.p.length !== a.w.length) { e.push(label + ': path length does not match the word.'); return; }
+      var inPath = {};
+      for (var k = 0; k < a.p.length; k++) {
+        var c = a.p[k];
+        if (!Number.isInteger(c) || c < 0 || c >= n * n) { e.push(label + ': a coordinate is outside the grid.'); return; }
+        if (inPath[c]) { e.push(label + ': uses the same cell twice.'); return; }
+        inPath[c] = 1;
+        if (used[c]) { e.push(label + ' shares a cell with ' + used[c] + '.'); return; }
+        if (k > 0 && !adjacent(a.p[k - 1], c, n)) { e.push(label + ': the path jumps over cells.'); return; }
+        if (p.grid[c] !== a.w[k]) { e.push(label + ': the grid letters do not match the stored path.'); return; }
+      }
+      a.p.forEach(function (c) { used[c] = label; });
+    });
+    if (specials !== 1) e.push('The puzzle must contain exactly one special word.');
+    return e;
+  }
+
+  /* ================= Encoding ================= */
+  function encodePuzzle(p) {
+    var json = JSON.stringify(p);
+    var bytes = new TextEncoder().encode(json), bin = '';
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function decodePuzzle(str) {
+    var b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    var bin = atob(b64), bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return JSON.parse(new TextDecoder().decode(bytes));
+  }
+
+  /* ================= Game state ================= */
+  var P = null, MODE = 'teacher', sel = [], found = {}, foundCount = 0, hintsUsed = 0;
+  var hint = { t: -1, lvl: 0 }, showSol = false, keyMap = {}, ownerOf = [], cellEls = [], svg = null;
+  var lastBuild = null, ptr = null, done = false;
+
+  function startGame(p, mode) {
+    P = p; MODE = mode;
+    sel = []; found = {}; foundCount = 0; hintsUsed = 0; hint = { t: -1, lvl: 0 }; showSol = false; done = false; ptr = null;
+    keyMap = {};
+    ownerOf = new Array(P.n * P.n).fill(-1);
+    P.answers.forEach(function (a, i) {
+      keyMap[a.p.join(',')] = i;
+      keyMap[a.p.slice().reverse().join(',')] = i;
+      a.p.forEach(function (c) { ownerOf[c] = i; });
+    });
+    els.pTitle.textContent = P.title;
+    els.pTheme.textContent = P.theme;
+    document.title = P.title + ' – Word Weaver';
+    els.teacherBar.hidden = mode !== 'teacher';
+    els.shareBox.hidden = true;
+    els.solBtn.setAttribute('aria-pressed', 'false');
+    els.solBtn.textContent = 'Show solution';
+    els.modeTag.textContent = mode === 'teacher' ? 'Teacher preview' : 'Student play';
+    els.makeOwn.hidden = !(mode === 'shared' && HAS_BUILDER);
+    els.totalCount.textContent = P.answers.length;
+    buildBoard();
+    if (HAS_BUILDER) els.builder.hidden = true;
+    els.game.hidden = false;
+    els.complete.hidden = true;
+    els.hintLine.textContent = '';
+    setMsg('Tap letters one at a time, or drag across them, to build a word.', 'info');
+    render();
+  }
+
+  function buildBoard() {
+    var n = P.n;
+    els.boardWrap.style.setProperty('--n', n);
+    els.board.innerHTML = '';
+    els.board.setAttribute('aria-label', 'Letter grid, ' + n + ' rows by ' + n + ' columns');
+    svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + n + ' ' + n);
+    svg.setAttribute('preserveAspectRatio', 'none');
+    svg.setAttribute('aria-hidden', 'true');
+    els.board.appendChild(svg);
+    cellEls = [];
+    for (var i = 0; i < n * n; i++) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'cell';
+      b.dataset.i = i;
+      b.tabIndex = i === 0 ? 0 : -1;
+      var s = document.createElement('span');
+      s.textContent = P.grid[i];
+      b.appendChild(s);
+      els.board.appendChild(b);
+      cellEls.push(b);
+    }
+  }
+
+  function rc(i) { return { r: Math.floor(i / P.n), c: i % P.n }; }
+  function isLocked(i) { var o = ownerOf[i]; return o >= 0 && !!found[o]; }
+
+  function render() {
+    var n = P.n;
+    for (var i = 0; i < n * n; i++) {
+      var el = cellEls[i], o = ownerOf[i], isFound = o >= 0 && !!found[o], sIdx = sel.indexOf(i);
+      var special = isFound && P.answers[o].s;
+      el.classList.toggle('sel', sIdx >= 0);
+      el.classList.toggle('found', isFound && !special);
+      el.classList.toggle('special', !!special);
+      el.classList.toggle('sol', showSol && o >= 0 && !isFound);
+      var p = rc(i), label = P.grid[i] + ', row ' + (p.r + 1) + ', column ' + (p.c + 1);
+      if (sIdx >= 0) label += ', selected letter ' + (sIdx + 1);
+      if (isFound) label += special ? ', part of the Golden Thread' : ', part of a found word';
+      el.setAttribute('aria-label', label);
+      el.setAttribute('aria-pressed', sIdx >= 0 ? 'true' : 'false');
+    }
+    drawLines();
+    var text = sel.map(function (c) { return P.grid[c]; }).join('');
+    els.currentWord.textContent = text || '—';
+    els.currentCount.textContent = sel.length ? sel.length + (sel.length === 1 ? ' letter' : ' letters') : '';
+    els.clearBtn.disabled = !sel.length;
+    els.checkBtn.disabled = done;
+    els.hintBtn.disabled = done;
+    els.foundCount.textContent = foundCount;
+    els.bar.style.width = (100 * foundCount / P.answers.length) + '%';
+    renderFoundList();
+  }
+
+  function pts(path) {
+    var n = P.n;
+    return path.map(function (c) { return (c % n + 0.5) + ',' + (Math.floor(c / n) + 0.5); }).join(' ');
+  }
+  function addLine(path, cls) {
+    if (path.length < 2) return;
+    var pl = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    pl.setAttribute('points', pts(path));
+    pl.setAttribute('class', 'ln ' + cls);
+    svg.appendChild(pl);
+  }
+  function drawLines() {
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    P.answers.forEach(function (a, i) {
+      if (found[i]) addLine(a.p, a.s ? 'special' : 'found');
+      else if (showSol) addLine(a.p, 'sol');
+    });
+    addLine(sel, 'sel');
+  }
+
+  function renderFoundList() {
+    els.foundList.innerHTML = '';
+    var order = themeOrder();
+    order.forEach(function (i) {
+      if (!found[i]) return;
+      var a = P.answers[i], li = document.createElement('li');
+      if (a.s) { li.className = 'special'; li.textContent = '★ Golden Thread: ' + a.d.toUpperCase(); }
+      else li.textContent = '✓ ' + a.d.toUpperCase();
+      els.foundList.appendChild(li);
+    });
+    var left = P.answers.length - foundCount;
+    var specialLeft = P.answers.some(function (a, i) { return a.s && !found[i]; });
+    els.hiddenNote.textContent = left === 0 ? 'All answers found!'
+      : left + (left === 1 ? ' answer' : ' answers') + ' still hidden' + (specialLeft ? ', including the ★ Golden Thread.' : '.');
+  }
+
+  function themeOrder() {
+    var a = [], b = [];
+    P.answers.forEach(function (x, i) { (x.s ? b : a).push(i); });
+    return a.concat(b);
+  }
+
+  function setMsg(text, type) {
+    els.msg.textContent = text;
+    els.msg.className = 'msg ' + (type || 'info');
+  }
+
+  function flash(cells, cls, ms) {
+    cells.forEach(function (i) {
+      var el = cellEls[i];
+      el.classList.remove(cls);
+      void el.offsetWidth;
+      el.classList.add(cls);
+      setTimeout(function () { el.classList.remove(cls); }, ms);
+    });
+  }
+
+  /* ================= Selection logic ================= */
+  function tryMatch() {
+    var k = sel.join(',');
+    if (Object.prototype.hasOwnProperty.call(keyMap, k)) {
+      var ai = keyMap[k];
+      if (!found[ai]) { markFound(ai); return true; }
+    }
+    return false;
+  }
+
+  function markFound(ai) {
+    found[ai] = true; foundCount++;
+    sel = [];
+    var a = P.answers[ai];
+    if (hint.t === ai) { hint = { t: -1, lvl: 0 }; els.hintLine.textContent = ''; }
+    if (a.s) setMsg('★ Golden Thread found: ' + a.d.toUpperCase() + '!', 'gold');
+    else setMsg('✓ Found: ' + a.d.toUpperCase(), 'good');
+    render();
+    if (foundCount === P.answers.length) finish();
+  }
+
+  function afterAdd() {
+    if (!tryMatch()) { setMsg('', 'info'); render(); }
+  }
+
+  /* Click / tap / keyboard selection – called exactly once per tap. */
+  function handleTap(i) {
+    if (done) return;
+    if (isLocked(i)) { flash([i], 'nope', 400); setMsg('That letter is already part of a found word.', 'info'); return; }
+    if (!sel.length) { sel.push(i); afterAdd(); return; }
+    var last = sel[sel.length - 1];
+    if (i === last) { sel.pop(); setMsg('Removed the last letter.', 'info'); render(); return; }
+    var idx = sel.indexOf(i);
+    if (idx >= 0) { sel = sel.slice(0, idx + 1); setMsg('Went back to that letter.', 'info'); render(); return; }
+    if (adjacent(last, i, P.n)) { sel.push(i); afterAdd(); return; }
+    flash([i], 'nope', 400);
+    setMsg('✗ That letter doesn’t touch “' + P.grid[last] + '”. Pick a letter next to it (diagonals count), or press Clear Selection.', 'bad');
+  }
+
+  /* Drag / swipe selection. */
+  function beginDrag(start) {
+    if (isLocked(start)) { ptr.dead = true; return; }
+    if (!(sel.length && sel[sel.length - 1] === start)) sel = [start];
+    setMsg('', 'info');
+    render();
+  }
+  function dragTo(i) {
+    if (ptr.dead || isLocked(i)) return;
+    var last = sel[sel.length - 1];
+    if (i === last) return;
+    if (sel.length >= 2 && i === sel[sel.length - 2]) { sel.pop(); render(); return; } // drag back = undo
+    if (sel.indexOf(i) >= 0 || !adjacent(last, i, P.n)) return;               // no reuse, no jumps
+    sel.push(i);
+    if (tryMatch()) { ptr.dead = true; return; }
+    render();
+  }
+
+  function cellAt(x, y, rect) {
+    var n = P.n, cw = rect.width / n, ch = rect.height / n;
+    var c = Math.floor((x - rect.left) / cw), r = Math.floor((y - rect.top) / ch);
+    if (r < 0 || c < 0 || r >= n || c >= n) return -1;
+    var dx = (x - (rect.left + (c + 0.5) * cw)) / cw, dy = (y - (rect.top + (r + 0.5) * ch)) / ch;
+    if (Math.sqrt(dx * dx + dy * dy) > 0.42) return -1; // centre zone only, so diagonal drags don't clip neighbours
+    return r * n + c;
+  }
+
+  /* Pointer events only – there is deliberately NO click listener on cells,
+     so one interaction can never be processed twice. */
+  els.board.addEventListener('pointerdown', function (e) {
+    if (!P || done || ptr) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    var cell = e.target.closest ? e.target.closest('.cell') : null;
+    if (!cell) return;
+    var i = +cell.dataset.i;
+    ptr = { id: e.pointerId, start: i, drag: false, dead: false, rect: els.board.getBoundingClientRect() };
+    try { els.board.setPointerCapture(e.pointerId); } catch (_) { }
+    setRoving(i);
+  });
+  els.board.addEventListener('pointermove', function (e) {
+    if (!ptr || e.pointerId !== ptr.id) return;
+    var i = cellAt(e.clientX, e.clientY, ptr.rect);
+    if (i < 0) return;
+    if (!ptr.drag) {
+      if (i === ptr.start) return;
+      ptr.drag = true;
+      beginDrag(ptr.start);
+    }
+    dragTo(i);
+  });
+  function endPointer(e, cancelled) {
+    if (!ptr || e.pointerId !== ptr.id) return;
+    var p = ptr; ptr = null;
+    try { els.board.releasePointerCapture(e.pointerId); } catch (_) { }
+    if (cancelled) { render(); return; }
+    if (!p.drag) handleTap(p.start);
+    else if (!p.dead && sel.length >= 2) setMsg('Keep adding letters, or press Check Word.', 'info');
+  }
+  els.board.addEventListener('pointerup', function (e) { endPointer(e, false); });
+  els.board.addEventListener('pointercancel', function (e) { endPointer(e, true); });
+  els.board.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+  function setRoving(i) {
+    cellEls.forEach(function (el) { el.tabIndex = -1; });
+    if (cellEls[i]) cellEls[i].tabIndex = 0;
+  }
+
+  els.board.addEventListener('keydown', function (e) {
+    var cell = e.target.closest ? e.target.closest('.cell') : null;
+    if (!cell || !P) return;
+    var i = +cell.dataset.i, n = P.n, r = Math.floor(i / n), c = i % n, t = -1;
+    switch (e.key) {
+      case 'Enter': case ' ': e.preventDefault(); handleTap(i); return;
+      case 'Escape': e.preventDefault(); clearSelection(); return;
+      case 'Backspace': e.preventDefault(); if (sel.length) { sel.pop(); render(); } return;
+      case 'ArrowUp': t = r > 0 ? i - n : -1; break;
+      case 'ArrowDown': t = r < n - 1 ? i + n : -1; break;
+      case 'ArrowLeft': t = c > 0 ? i - 1 : -1; break;
+      case 'ArrowRight': t = c < n - 1 ? i + 1 : -1; break;
+      case 'Home': t = r * n; break;
+      case 'End': t = r * n + n - 1; break;
+      default: return;
+    }
+    e.preventDefault();
+    if (t >= 0) { setRoving(t); cellEls[t].focus(); }
+  });
+
+  function clearSelection() {
+    if (!sel.length) return;
+    sel = [];
+    setMsg('Selection cleared.', 'info');
+    render();
+  }
+
+  function checkWord() {
+    if (done) return;
+    if (sel.length < 2) { setMsg('Select at least two connected letters first.', 'info'); return; }
+    if (tryMatch()) return;
+    var text = sel.map(function (c) { return P.grid[c]; }).join('');
+    var ai = -1;
+    P.answers.forEach(function (a, i) { if (ai < 0 && (a.w === text || a.w === reversed(text))) ai = i; });
+    var note;
+    if (ai >= 0 && found[ai]) note = 'You’ve already found ' + P.answers[ai].d.toUpperCase() + '. Selection cleared.';
+    else if (ai >= 0) note = '✗ ' + text + ' is a real answer, but not in this spot – the hidden one is somewhere else. Selection cleared.';
+    else note = '✗ ' + text + ' isn’t one of the hidden answers. Selection cleared – try again.';
+    els.board.classList.remove('shake'); void els.board.offsetWidth; els.board.classList.add('shake');
+    sel = [];
+    setMsg(note, 'bad');
+    render();
+  }
+
+  /* ================= Hints ================= */
+  function giveHint() {
+    if (done) return;
+    var order = themeOrder(), t = -1;
+    for (var k = 0; k < order.length; k++) if (!found[order[k]]) { t = order[k]; break; }
+    if (t < 0) return;
+    if (hint.t !== t) hint = { t: t, lvl: 0 };
+    hint.lvl = Math.min(hint.lvl + 1, 4);
+    hintsUsed++;
+    var a = P.answers[t], s = rc(a.p[0]), name = a.s ? 'The ★ Golden Thread' : 'This answer';
+    var txt;
+    if (hint.lvl === 1) txt = 'Hint 1: ' + name + ' contains ' + a.w.length + ' letters.';
+    else if (hint.lvl === 2) txt = 'Hint 2: ' + name + ' (' + a.w.length + ' letters) – try starting near row ' + (s.r + 1) + ', column ' + (s.c + 1) + '.';
+    else if (hint.lvl === 3) { txt = 'Hint 3: The first letter is “' + a.w[0] + '” – it is flashing with a dashed ring.'; flash([a.p[0]], 'hint', 3800); }
+    else { txt = 'Hint 4: It begins “' + a.w.slice(0, 2) + '…” – the first two letters are flashing. Keep going from there!'; flash(a.p.slice(0, 2), 'hint', 3800); }
+    els.hintLine.textContent = '💡 ' + txt;
+  }
+
+  /* ================= Completion ================= */
+  function finish() {
+    done = true;
+    sel = [];
+    render();
+    els.completeText.textContent = 'You found all ' + P.answers.length + ' answers' +
+      (hintsUsed ? ' using ' + hintsUsed + (hintsUsed === 1 ? ' hint.' : ' hints.') : ' without any hints!');
+    els.complete.hidden = false;
+    els.hintLine.textContent = '';
+    setMsg('🎉 Puzzle complete!', 'gold');
+    setTimeout(function () { els.completeHeading.focus(); els.complete.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50);
+  }
+  function restart() {
+    sel = []; found = {}; foundCount = 0; hintsUsed = 0; hint = { t: -1, lvl: 0 }; done = false;
+    els.complete.hidden = true;
+    els.hintLine.textContent = '';
+    setMsg('Puzzle restarted. Good luck!', 'info');
+    render();
+    els.pTitle.focus();
+  }
+
+  els.checkBtn.addEventListener('click', checkWord);
+  els.clearBtn.addEventListener('click', clearSelection);
+  els.hintBtn.addEventListener('click', giveHint);
+  els.restartBtn.addEventListener('click', restart);
+
+  /* ================= Sharing ================= */
+  function puzzleLink() { return location.href.split('#')[0] + '#p=' + encodePuzzle(P); }
+
+  function copyText(t) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(t).then(function () { return true; }, fallback);
+    }
+    return Promise.resolve(fallback());
+    function fallback() {
+      try { els.shareLink.focus(); els.shareLink.select(); return document.execCommand('copy'); } catch (_) { return false; }
+    }
+  }
+
+  function slug(s) { return (normalise(s).toLowerCase() || 'puzzle').slice(0, 40); }
+
+  function buildStudentHTML(p) {
+    var src = APP_SOURCE;
+    var S = '<' + '!--BUILDER-START--' + '>', E = '<' + '!--BUILDER-END--' + '>';
+    var a = src.indexOf(S), b = src.indexOf(E);
+    if (a > -1 && b > a) src = src.slice(0, a) + src.slice(b + E.length);
+    var data = JSON.stringify(p).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+    var marker = '<' + 'script id="ww-main">';
+    var inject = '<' + 'script>window.WW_EMBEDDED_PUZZLE=' + data + ';<' + '/script>\n';
+    src = src.replace(marker, function () { return inject + marker; });
+    var newTitle = '<title>' + escapeHtml(p.title) + ' – Word Weaver</title>';
+    src = src.replace(/<title>[^<]*<\/title>/, function () { return newTitle; });
+    return src;
+  }
+
+  if (els.copyBtn) els.copyBtn.addEventListener('click', function () {
+    var url = puzzleLink();
+    els.shareLink.value = url;
+    els.shareBox.hidden = false;
+    els.shareNote.textContent = location.protocol === 'file:'
+      ? 'Note: this file is opened from your computer, so the link only works on this computer. To share a link, host this file (e.g. SharePoint, Google Sites or a web server) and copy the link from there – or use Download Student Puzzle.'
+      : 'Students who open this link will get exactly this puzzle in play mode.';
+    copyText(url).then(function (ok) {
+      setMsg(ok ? '✓ Puzzle link copied to the clipboard.' : 'Copy the link from the box below.', ok ? 'good' : 'info');
+    });
+  });
+
+  if (els.dlBtn) els.dlBtn.addEventListener('click', function () {
+    var html = buildStudentHTML(P);
+    var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = slug(P.title) + '-student.html';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
+    setMsg('✓ Student puzzle downloaded. Send the file to students – it opens straight into play mode.', 'good');
+  });
+
+  if (els.solBtn) els.solBtn.addEventListener('click', function () {
+    showSol = !showSol;
+    els.solBtn.setAttribute('aria-pressed', showSol ? 'true' : 'false');
+    els.solBtn.textContent = showSol ? 'Hide solution' : 'Show solution';
+    render();
+  });
+
+  if (els.regenBtn) els.regenBtn.addEventListener('click', function () {
+    if (!lastBuild) return;
+    var res = generate(lastBuild);
+    if (res.ok) { startGame(res.puzzle, 'teacher'); setMsg('✓ New layout generated and validated.', 'good'); }
+    else setMsg('Could not create a new layout – the current one is unchanged.', 'bad');
+  });
+
+  if (els.editBtn) els.editBtn.addEventListener('click', showBuilder);
+
+  if (els.makeOwn) els.makeOwn.addEventListener('click', function (e) {
+    e.preventDefault();
+    history.replaceState(null, '', location.href.split('#')[0]);
+    if (!els.fWords.value.trim()) fillExample();
+    showBuilder();
+  });
+
+  /* ================= Builder UI ================= */
+  function showBuilder() {
+    if (!HAS_BUILDER) return;
+    els.game.hidden = true;
+    els.builder.hidden = false;
+    els.modeTag.textContent = 'Teacher builder';
+    document.title = 'Word Weaver – Teacher Builder';
+    els.fTitle.focus();
+  }
+  function fillExample() {
+    els.fTitle.value = EXAMPLE.title;
+    els.fTheme.value = EXAMPLE.theme;
+    els.fWords.value = EXAMPLE.words.join('\n');
+    els.fSpecial.value = EXAMPLE.special;
+  }
+  function showBuilderErrors(list) {
+    els.bErr.innerHTML = '';
+    var strong = document.createElement('div');
+    strong.textContent = list.length === 1 ? 'Please fix this:' : 'Please fix these:';
+    var ul = document.createElement('ul');
+    list.forEach(function (t) { var li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+    els.bErr.appendChild(strong); els.bErr.appendChild(ul);
+    els.bErr.hidden = false;
+  }
+
+  if (HAS_BUILDER) {
+    els.form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      els.bErr.hidden = true;
+      var data = readBuilder();
+      if (data.errors.length) { showBuilderErrors(data.errors); return; }
+      els.genBtn.disabled = true; els.genBtn.textContent = 'Generating…';
+      setTimeout(function () {
+        var res = generate(data);
+        els.genBtn.disabled = false; els.genBtn.textContent = 'Generate Puzzle';
+        if (!res.ok) {
+          showBuilderErrors([
+            'A valid grid could not be generated after many attempts.' + (res.word ? ' The answer causing the most difficulty was “' + res.word + '”.' : ''),
+            'Try shortening or removing that answer, or reducing the total number of letters.'
+          ]);
+          return;
+        }
+        lastBuild = data;
+        startGame(res.puzzle, 'teacher');
+        setMsg('✓ Puzzle generated and validated (' + res.puzzle.n + '×' + res.puzzle.n + '). Try it, then share it.', 'good');
+        els.pTitle.focus();
+      }, 30);
+    });
+    els.exampleBtn.addEventListener('click', function () { fillExample(); els.bErr.hidden = true; });
+    els.clearFormBtn.addEventListener('click', function () {
+      els.fTitle.value = ''; els.fTheme.value = ''; els.fWords.value = ''; els.fSpecial.value = '';
+      els.bErr.hidden = true; els.fTitle.focus();
+    });
+  }
+
+  /* ================= Start-up ================= */
+  function loadFromHash() {
+    var m = location.hash.match(/^#p=([A-Za-z0-9_-]+)$/);
+    if (!m) return false;
+    var p = null;
+    try { p = decodePuzzle(m[1]); } catch (_) { p = null; }
+    var errs = p ? validatePuzzle(p) : ['This puzzle link is damaged or incomplete.'];
+    if (errs.length) {
+      if (HAS_BUILDER) { fillExample(); showBuilder(); showBuilderErrors(['Could not open the shared puzzle: ' + errs[0]]); }
+      return true;
+    }
+    startGame(p, 'shared');
+    return true;
+  }
+
+  function init() {
+    if (window.WW_EMBEDDED_PUZZLE) {
+      var p = window.WW_EMBEDDED_PUZZLE, errs = validatePuzzle(p);
+      if (errs.length) {
+        els.game.hidden = false;
+        els.game.innerHTML = '<div class="panel error">This puzzle file is damaged: ' + escapeHtml(errs[0]) + '</div>';
+        return;
+      }
+      startGame(p, 'student');
+      return;
+    }
+    if (loadFromHash()) return;
+    if (HAS_BUILDER) { fillExample(); showBuilder(); }
+  }
+  window.addEventListener('hashchange', function () { if (!window.WW_EMBEDDED_PUZZLE) loadFromHash(); });
+
+  /* Exposed for automated testing only. */
+  window.__WW = { generate: generate, validatePuzzle: validatePuzzle, encode: encodePuzzle, decode: decodePuzzle,
+    buildStudentHTML: buildStudentHTML, state: function () { return { P: P, sel: sel.slice(), found: found, done: done }; } };
+
+  init();
+})();
+</script>
+</body>
+</html>
